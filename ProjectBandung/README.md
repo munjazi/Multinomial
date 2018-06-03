@@ -1,6 +1,7 @@
 # Content
 
 Dataset Created by Jose Portilla and Pierian Data for his Udemy Course (Python for Data Science and Machine Learning Bootcamp) if you want to be a data scientist I cannot recommend this course enough
+https://www.kaggle.com/fayomi/advertising
 
 # Inspiration
 
