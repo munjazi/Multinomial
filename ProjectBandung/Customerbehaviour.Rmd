@@ -1,0 +1,132 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+
+```{r}
+#Loading Required packages
+require(caTools)
+require(caret)
+require(rpart)
+require(rattle)
+require(RColorBrewer)
+require(randomForest)
+require(knitr)
+```
+
+
+```{r}
+#Loading data to local
+mydata=read.csv("d:/advertising.csv",header=TRUE)
+```
+
+```{r}
+#Change column names to make it simple
+colnames(mydata)[which(names(mydata) == "Daily.Time.Spent.on.Site")] <- "spent"
+colnames(mydata)[which(names(mydata) == "Daily.Internet.Usage")] <- "usage"
+colnames(mydata)[which(names(mydata) == "Area.Income")] <- "income"
+colnames(mydata)[which(names(mydata) == "Age")] <- "age"
+colnames(mydata)[which(names(mydata) == "Ad.Topic.Line")] <- "topic"
+colnames(mydata)[which(names(mydata) == "City")] <- "city"
+colnames(mydata)[which(names(mydata) == "Male")] <- "gender"
+colnames(mydata)[which(names(mydata) == "Country")] <- "country"
+colnames(mydata)[which(names(mydata) == "Timestamp")] <- "timestamp"
+colnames(mydata)[which(names(mydata) == "Clicked.on.Ad")] <- "clickad"
+
+#Fix some column class 
+mydata$age=as.numeric(mydata$age)
+mydata$gender=as.factor(mydata$gender)
+mydata$clickad=as.factor(mydata$clickad)
+head(mydata)
+```
+
+```{r}
+#Summary of the dataset
+summary(mydata)
+```
+```{r}
+#Split data into train and test dataset, with 0.8 split ratio, which is  80% as train and 20% as test
+set.seed(123)
+sample = sample.split(mydata,SplitRatio = 0.8)
+train=subset(mydata,sample ==TRUE)
+test=subset(mydata, sample==FALSE)
+```
+```{r}
+#Fit Logistic Regression model
+log_fit1<-glm(clickad~spent+usage+income+age+country+gender,family = "binomial",data = train)
+summary(log_fit1)
+```
+Country and gender have insignificant p-value (>0.05) so we drop those columns, and fit a new logistics model
+```{r}
+#Fit the 2nd Logistic regression model 
+log_fit2<-glm(clickad~spent+usage+income+age,family = "binomial",data = train)
+summary(log_fit2)
+```
+Looks like all the features or columns are already significant. We are going to predict the test dataset using this model.
+
+```{r}
+#Predict test dataset using the 2nd logistic regression model
+ptest2 <- predict(log_fit2,newdata=test,type="response")
+gg2=as.factor(floor(ptest2+0.5))
+confusionMatrix(gg2,test$clickad)
+```
+This model can predict the test dataset with 0.98 accuracy. Which mean it is a good model.
+Next we try another algorthm: Decision Tree
+
+```{r}
+#Apply Decision Tree algorithm
+tree1 = rpart(clickad~spent+usage+income+age+gender, data=train, method = "class")
+fancyRpartPlot(tree1)
+
+```
+
+
+
+
+```{r}
+#predict test dataset using decision tree model
+dttest <- predict(tree1, test, type = "class")
+confusionMatrix(dttest,test$clickad)
+```
+This model can predict click on ads with 96.5% accuracy. It is lower than the logistic regression model but it is still a good model too.
+
+Next we apply another algorithm : random forest
+```{r}
+# Apply the Random Forest Algorithm
+my_forest <- randomForest(clickad~spent+usage+income+age+gender, data=train, importance=TRUE,ntree=1000)
+
+```
+```{r}
+# Make your prediction using the test set
+rftest <- predict(my_forest, test)
+```
+```{r}
+confusionMatrix(rftest,test$clickad)
+```
+The first random forest (RF) model can predict the clicks on ads with 97.5% accuracy
+
+```{r}
+varImpPlot(my_forest)
+```
+This plot show us which feature is important. Based on the plot, when we drop gender, it will not decrease the accuracy or the gini information. So we drop the gender to reduce the complexities of the model. 
+```{r}
+# Apply the 2nd Random Forest Algorithm
+my_forest2 <- randomForest(clickad~spent+income+age+usage, data=train, importance=TRUE,ntree=1000)
+```
+```{r}
+# Make your prediction using the test set
+rftest2 <- predict(my_forest2, test)
+```
+```{r}
+confusionMatrix(rftest2,test$clickad)
+```
+This model still have the same accuracy as the first algorithm. But it have less feature.
+
+Conclusion:
+the best model so far is logistic regression which can predict the clicks on ads with 98% accuracy
